@@ -1,10 +1,11 @@
 # hyper-socks-async
 
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md)
+[![Crates.io](https://img.shields.io/crates/v/hyper-socks-async.svg?maxAge=2592000)](https://crates.io/crates/hyper-socks-async)
+
 Implements currently only socks V5 client with IPv4 but works with the current async hyper. 
 
 Doesn't support authentication or IPv6. Make an issue if you would need it..
-
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md)
 
 ## Installation
 
