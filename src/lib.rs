@@ -85,7 +85,7 @@ fn auth_negotiation(socket: TcpStream, creds: Option<(Vec<u8>, Vec<u8>)>) -> Han
 }
 
 fn answer_hello(socket: TcpStream, response: [u8;2], creds: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<TcpStream> {
-    if response[0] == 5 && response[1] == 0 && creds.is_none() {
+    if response[0] == 5 && response[1] == 0 {
         Box::new(write_all(socket, [5, 1, 0]).map( |(socket, _)| socket))
     } else if response[0] == 5 && response[1] == 2 && creds.is_some() {
         Box::new(auth_negotiation(socket, creds)
