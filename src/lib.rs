@@ -23,7 +23,7 @@ use tokio_tls::TlsConnectorExt;
 pub struct Socksv5Connector {
     handle: Handle,
     proxy_addr: SocketAddr,
-    auth: Option<(Vec<u8>, Vec<u8>)>,
+    creds: Option<(Vec<u8>, Vec<u8>)>,
 }
 
 impl Socksv5Connector {
@@ -31,11 +31,11 @@ impl Socksv5Connector {
         Socksv5Connector {
             handle: handle.clone(),
             proxy_addr,
-            auth: None
+            creds: None
         }
     }
 
-    pub fn new_with_auth(handle: &Handle, proxy_addr: SocketAddr, username: &str, password: &str) -> io::Result<Socksv5Connector> {
+    pub fn new_with_creds(handle: &Handle, proxy_addr: SocketAddr, username: &str, password: &str) -> io::Result<Socksv5Connector> {
         let u = username.as_bytes();
         let p = password.as_bytes();
         if u.len() > 255 || p.len() > 255 {
@@ -44,7 +44,7 @@ impl Socksv5Connector {
             Ok(Socksv5Connector {
                 handle: handle.clone(),
                 proxy_addr,
-                auth: Some((u.to_vec(), p.to_vec()))
+                creds: Some((u.to_vec(), p.to_vec()))
             })
         }
     }
@@ -57,16 +57,16 @@ impl Service for Socksv5Connector {
     type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        let auth = self.auth.clone();
+        let creds = self.creds.clone();
         Box::new(TcpStream::connect(&self.proxy_addr, &self.handle)
-            .and_then(move |socket| do_handshake(socket, req, auth)))
+            .and_then(move |socket| do_handshake(socket, req, creds)))
     }
 }
 
 type HandshakeFuture<T> = Box<Future<Item=T, Error=Error>>;
 
-fn auth_negotiation(socket: TcpStream, auth: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<TcpStream> {
-    let (username, password) = auth.unwrap();
+fn auth_negotiation(socket: TcpStream, creds: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<TcpStream> {
+    let (username, password) = creds.unwrap();
     let mut creds_msg: Vec<u8> = Vec::with_capacity(username.len() + password.len() + 3);
     creds_msg.push(1);
     creds_msg.push(username.len() as u8);
@@ -84,11 +84,11 @@ fn auth_negotiation(socket: TcpStream, auth: Option<(Vec<u8>, Vec<u8>)>) -> Hand
         }))
 }
 
-fn answer_hello(socket: TcpStream, response: [u8;2], auth: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<TcpStream> {
-    if response[0] == 5 && response[1] == 0 && auth.is_none() {
+fn answer_hello(socket: TcpStream, response: [u8;2], creds: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<TcpStream> {
+    if response[0] == 5 && response[1] == 0 && creds.is_none() {
         Box::new(write_all(socket, [5, 1, 0]).map( |(socket, _)| socket))
-    } else if response[0] == 5 && response[1] == 2 && auth.is_some() {
-        Box::new(auth_negotiation(socket, auth)
+    } else if response[0] == 5 && response[1] == 2 && creds.is_some() {
+        Box::new(auth_negotiation(socket, creds)
             .and_then( |socket| write_all(socket, [5, 1, 0]).map( |(socket, _)| socket)))
     } else {
         Box::new(Err(Error::new(ErrorKind::InvalidData, "wrong response from socks server")).into_future())
@@ -154,17 +154,17 @@ fn read_response(socket: TcpStream, response: [u8;3]) -> HandshakeFuture<TcpStre
 }
 
 
-fn do_handshake(socket: TcpStream, req: hyper::Uri, auth: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<MaybeHttpsStream<TcpStream>> {
+fn do_handshake(socket: TcpStream, req: hyper::Uri, creds: Option<(Vec<u8>, Vec<u8>)>) -> HandshakeFuture<MaybeHttpsStream<TcpStream>> {
     let is_https = req.scheme() == Some("https");
     let host = match req.host() {
         Some(host) => host.to_string(),
         _ => return Box::new(Err(Error::new(ErrorKind::InvalidInput, "Missing host")).into_future())
     };
 
-    let method: u8 = auth.clone().map(|_| 2).unwrap_or(0);
+    let method: u8 = creds.clone().map(|_| 2).unwrap_or(0);
     let established = write_all(socket, [5, 1, method])
         .and_then( |(socket, _)| read_exact(socket, [0;2]))
-        .and_then( |(socket, response)| answer_hello(socket, response, auth))
+        .and_then( |(socket, response)| answer_hello(socket, response, creds))
         .and_then(move |socket| write_addr(socket, req))
         .and_then( |socket|  read_exact(socket, [0;3]))
         .and_then( |(socket, response)| read_response(socket, response));

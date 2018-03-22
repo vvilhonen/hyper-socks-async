@@ -15,7 +15,7 @@ fn main() {
     // Proxy running on 127.0.0.1:9150 with credentials socksuser/sockspass
     let proxy_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9150));
     let client = Client::configure()
-        .connector(Socksv5Connector::new_with_auth(&core.handle(), proxy_addr, "socksuser", "sockspass").unwrap())
+        .connector(Socksv5Connector::new_with_creds(&core.handle(), proxy_addr, "socksuser", "sockspass").unwrap())
         .build(&core.handle());
 
     // http://example.com or http://1.2.3.4 work as well
