@@ -35,25 +35,17 @@ impl Socksv5Connector {
         }
     }
 
-    pub fn with_creds(mut self, creds: &(&str, &str)) -> io::Result<Socksv5Connector> {
-        let &(ref username, ref password) = creds;
-        let u = username.as_bytes();
-        let p = password.as_bytes();
-        if u.len() > 255 || p.len() > 255 {
-            Err(Error::new(ErrorKind::Other, "invalid credentials"))
-        } else {
-            self.creds = Some((u.to_vec(), p.to_vec()));
-            Ok(self)
-        }
-    }
-
-    pub fn with_creds_binary(mut self, creds: &(Vec<u8>, Vec<u8>)) -> io::Result<Socksv5Connector> {
-        let &(ref username, ref password) = creds;
+    pub fn new_with_creds<T: Into<Vec<u8>>>(handle: &Handle, proxy_addr: SocketAddr, creds: (T, T)) -> io::Result<Socksv5Connector> {
+        let username = creds.0.into();
+        let password = creds.1.into();
         if username.len() > 255 || password.len() > 255 {
             Err(Error::new(ErrorKind::Other, "invalid credentials"))
         } else {
-            self.creds = Some((username.to_vec(), password.to_vec()));
-            Ok(self)
+            Ok(Socksv5Connector {
+                handle: handle.clone(),
+                proxy_addr,
+                creds: Some((username, password))
+            })
         }
     }
 }
