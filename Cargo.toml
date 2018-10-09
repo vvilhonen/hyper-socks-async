@@ -3,7 +3,7 @@ name = "hyper-socks-async"
 version = "0.1.0"
 authors = ["Vesa Vilhonen <vesa@vilhonen.com>"]
 license = "MIT"
-description = "Socks V5 connector with TLS support for async hyper (>= 0.11)"
+description = "Socks V5 connector with TLS support for async hyper (>= 0.11 < 0.12)"
 repository = "https://github.com/vvilhonen/hyper-socks-async"
 readme = "README.md"
 
